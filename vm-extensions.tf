@@ -1,6 +1,4 @@
-##########################################################
-## Install DNS role on onprem and AZ DNS servers
-##########################################################
+
 
 resource "azurerm_virtual_machine_extension" "install-dns-onprem-dc" {
     
