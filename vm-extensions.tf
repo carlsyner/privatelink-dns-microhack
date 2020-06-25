@@ -1,5 +1,5 @@
 ##########################################################
-## Install DNS role and tool on onprem and AZ DNS servers
+## Install DNS role on onprem and AZ DNS servers
 ##########################################################
 
 resource "azurerm_virtual_machine_extension" "install-dns-onprem-dc" {
@@ -30,4 +30,30 @@ resource "azurerm_virtual_machine_extension" "install-dns-az-dc" {
         "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted Install-WindowsFeature -Name DNS -IncludeAllSubFeature -IncludeManagementTools; exit 0"
     }
 SETTINGS
+}
+
+##########################################################
+## Execute post-config scripts
+##########################################################
+
+resource "azurerm_virtual_machine_extension" "post-config" {
+  name                 = "post-config"
+  virtual_machine_id   = azurerm_virtual_machine.onprem-mgmt-vm.id
+  publisher            = "Microsoft.Compute"
+  type                 = "CustomScriptExtension"
+  type_handler_version = "1.9"
+
+ protected_settings = <<PROTECTED_SETTINGS
+    {
+      "commandtoExecute": "powershell.exe -ExecutionPolicy Unrestricted -File privatelink-post-deploy.ps1"
+    }
+  PROTECTED_SETTINGS
+
+  settings = <<SETTINGS
+    {
+        "fileUris": [
+          "https://gist.githubusercontent.com/carlsyner/ac6af5fd87abbad5e13e08e88f3cad9a/raw/85eb9f2943075e3ca3188eaf6b5bc6a9a4bacb6b/privatelink-post-deploy.ps1"
+          ]
+    }
+  SETTINGS
 }
