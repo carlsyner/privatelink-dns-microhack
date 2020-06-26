@@ -11,12 +11,11 @@ variable "username" {
 }
 
 variable "password" {
-  description = "Please enter a Password for the Virtual Machines"
-  type        = string
-    }
+  description = "Please enter a Password for the Virtual Machines. Password must meet Azure complexity requirements"
+   type        = string
+}
 
 variable "vmsize" {
   description = "Size of the VMs"
   default     = "Standard_D2_v3"
 }
-
