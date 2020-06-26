@@ -11,7 +11,7 @@ variable "username" {
 }
 
 variable "password" {
-  description = "Please enter a Password for the Virtual Machines. Password must meet Azure complexity requirements"
+  description = "Password must meet Azure complexity requirements"
    type        = string
 }
 
