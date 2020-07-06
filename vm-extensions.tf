@@ -53,7 +53,7 @@ resource "azurerm_virtual_machine_extension" "post-config" {
   settings = <<SETTINGS
     {
         "fileUris": [
-          "https://gist.githubusercontent.com/carlsyner/ac6af5fd87abbad5e13e08e88f3cad9a/raw/85eb9f2943075e3ca3188eaf6b5bc6a9a4bacb6b/privatelink-post-deploy.ps1"
+          "https://gist.githubusercontent.com/carlsyner/ac6af5fd87abbad5e13e08e88f3cad9a/raw/d31a57774c1640831da62b8d394a104ca1b3e7ad/privatelink-post-deploy.ps1"
           ]
     }
   SETTINGS
