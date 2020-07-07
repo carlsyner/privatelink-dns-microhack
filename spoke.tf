@@ -7,10 +7,10 @@ resource "azurerm_resource_group" "private-link-microhack-spoke-rg" {
   name     = "private-link-microhack-spoke-rg"
   location = var.location
 
- tags = {
+  tags = {
     environment = "spoke"
     deployment  = "terraform"
-    microhack    = "private-link"
+    microhack   = "private-link"
   }
 }
 #######################################################################
@@ -26,7 +26,7 @@ resource "azurerm_virtual_network" "spoke-vnet" {
   tags = {
     environment = "spoke"
     deployment  = "terraform"
-    microhack    = "private-link"
+    microhack   = "private-link"
   }
 }
 
@@ -52,10 +52,10 @@ resource "azurerm_virtual_network_peering" "spoke-hub-peer" {
   remote_virtual_network_id = azurerm_virtual_network.hub-vnet.id
 
   allow_virtual_network_access = true
-  allow_forwarded_traffic = true
-  allow_gateway_transit   = false
-  use_remote_gateways     = true
-  depends_on = [azurerm_virtual_network.spoke-vnet, azurerm_virtual_network.hub-vnet , azurerm_virtual_network_gateway.hub-vnet-gateway]
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+  use_remote_gateways          = true
+  depends_on                   = [azurerm_virtual_network.spoke-vnet, azurerm_virtual_network.hub-vnet, azurerm_virtual_network_gateway.hub-vnet-gateway]
 }
 
 #######################################################################
@@ -77,7 +77,7 @@ resource "azurerm_network_interface" "az-mgmt-nic" {
   tags = {
     environment = "spoke"
     deployment  = "terraform"
-    microhack    = "private-link"
+    microhack   = "private-link"
   }
 }
 
@@ -119,7 +119,7 @@ resource "azurerm_virtual_machine" "az-mgmt-vm" {
   tags = {
     environment = "spoke"
     deployment  = "terraform"
-    microhack    = "private-link"
+    microhack   = "private-link"
   }
 }
 
