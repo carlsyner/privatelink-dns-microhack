@@ -7,21 +7,6 @@ locals {
 }
 
 #######################################################################
-## Create Resource Group
-#######################################################################
-
-resource "azurerm_resource_group" "privatelink-dns-microhack-rg" {
-  name     = "privatelink-dns-microhack-rg"
-  location = var.location
-
-  tags = {
-    environment = "hub-spoke"
-    deployment  = "terraform"
-    microhack   = "privatelink-dns"
-  }
-}
-
-#######################################################################
 ## Create Virtual Networks
 #######################################################################
 
@@ -122,7 +107,7 @@ resource "azurerm_network_interface" "az-mgmt-nic" {
   enable_ip_forwarding = false
 
   ip_configuration {
-    name                          = "spoke"
+    name                          = "az-mgmt-nic"
     subnet_id                     = azurerm_subnet.spoke-infrastructure.id
     private_ip_address_allocation = "Dynamic"
   }
