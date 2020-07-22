@@ -13,7 +13,7 @@ resource "azurerm_virtual_network" "onprem-vnet" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
 
@@ -28,6 +28,13 @@ resource "azurerm_subnet" "onprem-gateway-subnet" {
   address_prefix       = "192.168.255.224/27"
 }
 
+resource "azurerm_subnet" "onprem-bastion-subnet" {
+  name                 = "AzureBastionSubnet"
+  resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+  virtual_network_name = azurerm_virtual_network.onprem-vnet.name
+  address_prefix       = "192.168.1.0/27"
+}
+
 resource "azurerm_subnet" "onprem-infrastructure-subnet" {
   name                 = "InfrastructureSubnet"
   resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
@@ -39,8 +46,8 @@ resource "azurerm_subnet" "onprem-infrastructure-subnet" {
 ## Create Public IPs
 #######################################################################
 
-resource "azurerm_public_ip" "onprem-mgmt-pip" {
-  name                = "onprem-mgmt-pip"
+resource "azurerm_public_ip" "onprem-bastion-pip" {
+  name                = "onprem-bastion-pip"
   location            = var.location
   resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   allocation_method   = "Static"
@@ -48,7 +55,23 @@ resource "azurerm_public_ip" "onprem-mgmt-pip" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
+  }
+}
+
+#######################################################################
+## Create Bastion Service
+#######################################################################
+
+resource "azurerm_bastion_host" "onprem-bastion-host" {
+  name                = "onprem-bastion-host"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+
+  ip_configuration {
+    name                 = "onprem-bastion-host"
+    subnet_id            = azurerm_subnet.onprem-bastion-subnet.id
+    public_ip_address_id = azurerm_public_onprem-bastion-pip.id
   }
 }
 
@@ -60,8 +83,7 @@ resource "azurerm_network_interface" "onprem-dns-nic" {
   name                 = "onprem-dns-nic"
   location             = var.location
   resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
-  enable_ip_forwarding = false
-
+  
   ip_configuration {
     name                          = "onprem-dns-nic"
     subnet_id                     = azurerm_subnet.onprem-infrastructure-subnet.id
@@ -72,7 +94,7 @@ resource "azurerm_network_interface" "onprem-dns-nic" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
 
@@ -80,20 +102,18 @@ resource "azurerm_network_interface" "onprem-mgmt-nic" {
   name                 = "onprem-mgmt-nic"
   location             = var.location
   resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
-  enable_ip_forwarding = false
-
+  
   ip_configuration {
     name                          = "onprem-mgmt-nic"
     subnet_id                     = azurerm_subnet.onprem-infrastructure-subnet.id
     private_ip_address_allocation = "static"
     private_ip_address            = "192.168.0.5"
-    public_ip_address_id          = azurerm_public_ip.onprem-mgmt-pip.id
   }
 
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
 
@@ -122,7 +142,7 @@ resource "azurerm_network_security_group" "onprem-mgmt-nsg" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
 
@@ -169,7 +189,7 @@ resource "azurerm_virtual_machine" "onprem-dns-vm" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
 
@@ -207,7 +227,7 @@ resource "azurerm_virtual_machine" "onprem-mgmt-vm" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
 
@@ -245,6 +265,6 @@ resource "azurerm_virtual_network_gateway" "onprem-vpn-gateway" {
   tags = {
     environment = "onprem"
     deployment  = "terraform"
-    microhack   = "private-link"
+    microhack   = "privatelink-dns"
   }
 }
