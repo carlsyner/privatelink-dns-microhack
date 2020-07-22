@@ -7,11 +7,11 @@ locals {
 }
 
 #######################################################################
-## Create Resource Groups
+## Create Resource Group
 #######################################################################
 
-resource "azurerm_resource_group" "private-link-microhack-hub-rg" {
-  name     = "private-link-microhack-hub-rg"
+resource "azurerm_resource_group" "azure-privatelink-dns-microhack-rg" {
+  name     = "azure-privatelink-dns-microhack-rg"
   location = var.location
 
   tags = {
@@ -21,7 +21,6 @@ resource "azurerm_resource_group" "private-link-microhack-hub-rg" {
   }
 }
 
-
 #######################################################################
 ## Create Virtual Networks
 #######################################################################
@@ -29,11 +28,24 @@ resource "azurerm_resource_group" "private-link-microhack-hub-rg" {
 resource "azurerm_virtual_network" "hub-vnet" {
   name                = "hub-vnet"
   location            = var.location
-  resource_group_name = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   address_space       = ["10.0.0.0/16"]
 
   tags = {
     environment = "hub-spoke"
+    deployment  = "terraform"
+    microhack   = "private-link"
+  }
+}
+
+resource "azurerm_virtual_network" "spoke-vnet" {
+  name                = "spoke-vnet"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+  address_space       = ["10.1.0.0/16"]
+
+  tags = {
+    environment = "spoke"
     deployment  = "terraform"
     microhack   = "private-link"
   }
@@ -45,16 +57,23 @@ resource "azurerm_virtual_network" "hub-vnet" {
 
 resource "azurerm_subnet" "hub-gateway-subnet" {
   name                 = "GatewaySubnet"
-  resource_group_name  = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   virtual_network_name = azurerm_virtual_network.hub-vnet.name
   address_prefix       = "10.0.255.224/27"
 }
 
 resource "azurerm_subnet" "hub-dns" {
   name                 = "DNSSubnet"
-  resource_group_name  = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   virtual_network_name = azurerm_virtual_network.hub-vnet.name
   address_prefix       = "10.0.0.0/24"
+}
+
+resource "azurerm_subnet" "spoke-infrastructure" {
+  name                 = "InfrastructureSubnet"
+  resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+  virtual_network_name = azurerm_virtual_network.spoke-vnet.name
+  address_prefix       = "10.1.0.0/24"
 }
 
 #######################################################################
@@ -63,7 +82,7 @@ resource "azurerm_subnet" "hub-dns" {
 
 resource "azurerm_virtual_network_peering" "hub-spoke-peer" {
   name                         = "hub-spoke-peer"
-  resource_group_name          = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name          = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   virtual_network_name         = azurerm_virtual_network.hub-vnet.name
   remote_virtual_network_id    = azurerm_virtual_network.spoke-vnet.id
   allow_virtual_network_access = true
@@ -80,7 +99,7 @@ resource "azurerm_virtual_network_peering" "hub-spoke-peer" {
 resource "azurerm_network_interface" "az-dns-nic" {
   name                 = "az-dns-nic"
   location             = var.location
-  resource_group_name  = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   enable_ip_forwarding = false
 
   ip_configuration {
@@ -96,6 +115,25 @@ resource "azurerm_network_interface" "az-dns-nic" {
   }
 }
 
+resource "azurerm_network_interface" "az-mgmt-nic" {
+  name                 = "az-mgmt-nic"
+  location             = var.location
+  resource_group_name  = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+  enable_ip_forwarding = false
+
+  ip_configuration {
+    name                          = "spoke"
+    subnet_id                     = azurerm_subnet.spoke-infrastructure.id
+    private_ip_address_allocation = "Dynamic"
+  }
+
+  tags = {
+    environment = "spoke"
+    deployment  = "terraform"
+    microhack   = "private-link"
+  }
+}
+
 #######################################################################
 ## Create Virtual Machine
 #######################################################################
@@ -103,7 +141,7 @@ resource "azurerm_network_interface" "az-dns-nic" {
 resource "azurerm_virtual_machine" "az-dns-vm" {
   name                  = "az-dns-vm"
   location              = var.location
-  resource_group_name   = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name   = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   network_interface_ids = [azurerm_network_interface.az-dns-nic.id]
   vm_size               = var.vmsize
 
@@ -138,6 +176,44 @@ resource "azurerm_virtual_machine" "az-dns-vm" {
   }
 }
 
+resource "azurerm_virtual_machine" "az-mgmt-vm" {
+  name                  = "az-mgmt-vm"
+  location              = var.location
+  resource_group_name   = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+  network_interface_ids = [azurerm_network_interface.az-mgmt-nic.id]
+  vm_size               = var.vmsize
+
+  storage_image_reference {
+    offer     = "WindowsServer"
+    publisher = "MicrosoftWindowsServer"
+    sku       = "2019-Datacenter"
+    version   = "latest"
+  }
+
+  storage_os_disk {
+    name              = "az-mgmt-osdisk"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Standard_LRS"
+  }
+
+  os_profile {
+    computer_name  = "az-mgmt-vm"
+    admin_username = var.username
+    admin_password = var.password
+  }
+
+  os_profile_windows_config {
+    provision_vm_agent = true
+  }
+
+  tags = {
+    environment = "spoke"
+    deployment  = "terraform"
+    microhack   = "private-link"
+  }
+}
+
 #############################################################################
 ## Create Virtual Network Gateway
 #############################################################################
@@ -145,7 +221,7 @@ resource "azurerm_virtual_machine" "az-dns-vm" {
 resource "azurerm_public_ip" "hub-vpn-gateway-pip" {
   name                = "hub-vpn-gateway-pip"
   location            = var.location
-  resource_group_name = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
 
   allocation_method = "Dynamic"
 }
@@ -153,7 +229,7 @@ resource "azurerm_public_ip" "hub-vpn-gateway-pip" {
 resource "azurerm_virtual_network_gateway" "hub-vnet-gateway" {
   name                = "hub-vpn-gateway"
   location            = var.location
-  resource_group_name = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
 
   type     = "Vpn"
   vpn_type = "RouteBased"
@@ -184,7 +260,7 @@ resource "azurerm_virtual_network_gateway" "hub-vnet-gateway" {
 resource "azurerm_virtual_network_gateway_connection" "hub-onprem-conn" {
   name                = "hub-onprem-conn"
   location            = var.location
-  resource_group_name = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
 
   type           = "Vnet2Vnet"
   routing_weight = 1
@@ -198,7 +274,7 @@ resource "azurerm_virtual_network_gateway_connection" "hub-onprem-conn" {
 resource "azurerm_virtual_network_gateway_connection" "onprem-hub-conn" {
   name                            = "onprem-hub-conn"
   location                        = var.location
-  resource_group_name             = azurerm_resource_group.private-link-microhack-hub-rg.name
+  resource_group_name             = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
   type                            = "Vnet2Vnet"
   routing_weight                  = 1
   virtual_network_gateway_id      = azurerm_virtual_network_gateway.onprem-vpn-gateway.id
@@ -211,4 +287,21 @@ resource "azurerm_virtual_network_gateway_connection" "onprem-hub-conn" {
     deployment  = "terraform"
     microhack   = "private-link"
   }
+}
+
+#######################################################################
+## Create VNet Peering
+#######################################################################
+
+resource "azurerm_virtual_network_peering" "spoke-hub-peer" {
+  name                      = "spoke-hub-peer"
+  resource_group_name       = azurerm_resource_group.azure-privatelink-dns-microhack-rg.name
+  virtual_network_name      = azurerm_virtual_network.spoke-vnet.name
+  remote_virtual_network_id = azurerm_virtual_network.hub-vnet.id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+  use_remote_gateways          = true
+  depends_on                   = [azurerm_virtual_network.spoke-vnet, azurerm_virtual_network.hub-vnet, azurerm_virtual_network_gateway.hub-vnet-gateway]
 }
