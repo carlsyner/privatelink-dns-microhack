@@ -74,6 +74,12 @@ resource "azurerm_bastion_host" "onprem-bastion-host" {
     subnet_id            = azurerm_subnet.onprem-bastion-subnet.id
     public_ip_address_id = azurerm_public_ip.onprem-bastion-pip.id
   }
+
+  tags = {
+    environment = "onprem"
+    deployment  = "terraform"
+    microhack   = "privatelink-dns"
+  }
 }
 
 #######################################################################
